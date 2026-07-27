@@ -8,6 +8,7 @@ find_package(SFML 2.5 COMPONENTS audio REQUIRED)
 add_executable(MusikSpieler
     src/main.cpp
     src/Player.cpp
+    src/SignalInput.cpp
 )
 
 target_link_libraries(MusikSpieler sfml-audio)

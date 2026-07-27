@@ -47,6 +47,13 @@ void Player::stop() {
     }
 }
 
+// 设置播放的起始位置
+void Player::setCurrentTime(float time) {
+    if (_isValid) {
+        _music.setPlayingOffset(sf::seconds(time));
+    }
+}
+
 // 获取当前播放位置（秒）
 float Player::getCurrentTime() const {
     if (_isValid) {

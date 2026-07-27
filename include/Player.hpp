@@ -32,6 +32,11 @@ class Player {
         void stop();
         
         /**
+         * @brief 设置播放的起始位置
+         */
+        void setCurrentTime(float time);
+
+        /**
          * @brief 获取当前播放位置（秒）
          * @return 当前播放进度（秒）
          */
