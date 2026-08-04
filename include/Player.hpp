@@ -55,6 +55,11 @@ class Player {
         bool isPlaying() const;
         
         /**
+         * @brief 设置循环次数
+         */
+        void setLoop(bool loop);
+        
+        /**
          * @brief 检查音乐是否加载成功
          * @return true表示加载成功
          */

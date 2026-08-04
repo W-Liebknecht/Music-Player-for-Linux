@@ -78,6 +78,13 @@ bool Player::isPlaying() const {
     return false;
 }
 
+// 设置循环次数
+void Player::setLoop(bool loop) {
+    if (_isValid) {
+        _music.setLoop(loop);
+    }
+}
+
 // 打印音乐信息
 void Player::printInfo() const {
     if (!_isValid) {
@@ -85,10 +92,10 @@ void Player::printInfo() const {
         return;
     }
     
-    std::cout << "正在播放: " << _filePath << std::endl;
-    std::cout << "时长: " << getDuration() << " 秒" << std::endl;
-    std::cout << "采样率: " << _music.getSampleRate() << " Hz" << std::endl;
-    std::cout << "声道数: " << _music.getChannelCount() << std::endl;
+    std::cout << "Currently Playing: " << _filePath << std::endl;
+    std::cout << "Time Duration: " << getDuration() << " seconds" << std::endl;
+    std::cout << "Sampling rate: " << _music.getSampleRate() << " Hz" << std::endl;
+    std::cout << "Number of channels: " << _music.getChannelCount() << std::endl;
 }
 
 // 验证MP3文件格式
