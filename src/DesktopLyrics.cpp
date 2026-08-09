@@ -31,6 +31,7 @@ void DesktopLyrics::setText(const QString &text) {
         m_lyricText = text;
         updateWidgetSize(); // 文字变化时重新计算窗口宽高
         update();           // 触发重绘 (paintEvent)
+        positionAtBottom();
     }
 }
 
