@@ -30,6 +30,8 @@ add_executable(MusikSpieler
     include/DesktopLyrics.hpp
     src/LyricParser.cpp 
     include/LyricParser.hpp 
+    src/InputController.cpp
+    include/InputController.hpp
 )
 
 # 4. 设置头文件搜索目录

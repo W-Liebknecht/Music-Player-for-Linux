@@ -2,13 +2,20 @@
 #include "SignalInput.hpp"
 #include "DesktopLyrics.hpp"
 #include "LyricParser.hpp"
+#include "InputController.hpp"
 
 #include <QApplication>
 #include <QTimer>
 #include <QFileInfo>
 #include <iostream>
 #include <string>
-
+#include <algorithm>
+#include <sstream>
+#include <iomanip>
+#include <sys/ioctl.h> // 提供 ioctl() 和 TIOCGWINSZ
+#include <unistd.h>    // 提供 STDOUT_FILENO
+#include <stdio.h>     // 提供 perror()
+                       //
 int main(int argc, char* argv[]) {
     // 1. 初始化 Qt 应用
     QApplication app(argc, argv);
@@ -33,9 +40,10 @@ int main(int argc, char* argv[]) {
 
     LyricsParser lyricParser;
     if (!lyricParser.load(filepath)) {
-        std::cout << "未找到外挂或内嵌歌词，将默认显示歌曲名。" << std::endl;
+        std::cout << "Lyrics not found; showing the song title instead." << std::endl;
     }
-
+    bool showLyrics = true; // 默认开启歌词显示
+                            //
     player.printInfo();
     player.setLoop(true);
 
@@ -51,83 +59,22 @@ int main(int argc, char* argv[]) {
     }
 
     TerminalRaw term;
-    bool paused = false;
-
-    std::cout << "Now playing... Space to pause/resume, ':' command, ESC to quit." << std::endl;
+    InputController inputController(player, lyricsWidget, term, songTitle);
 
     // 3. 定时器轮询
     QTimer pollTimer;
     QObject::connect(&pollTimer, &QTimer::timeout, [&]() {
-        // --- Part A: 处理终端按键输入 ---
-        char ch = term.getch(10);
-
-        if (ch != 0) {
-            if (ch == 27) {                   // ESC
-                std::cout << "\r⏹ The user presses ESC to stop playing.\033[K\n" << std::flush;
-                player.stop();
-                app.quit();
-                return;
-            }
-            else if (ch == ' ') {             // 空格切换暂停
-                if (!paused) {
-                    player.pause();         
-                    std::cout << "\r⏸ Paused\033[K" << std::flush;
-                    lyricsWidget.setText("⏸ " + songTitle);
-                } else {
-                    player.play();          
-                    std::cout << "\r▶ Continue Playing\033[K" << std::flush;
-                }
-                paused = !paused;
-            }
-            else if (ch == 'h') {
-                if (!paused) { player.pause(); }
-                float currentTime = player.getCurrentTime();
-                if (currentTime >= 5.f) { currentTime -= 5.f; } else { currentTime = 0.f; };
-                player.setCurrentTime(currentTime);
-                if (!paused) { player.play(); }
-                std::cout << "\rRewind 5 seconds\033[K" << std::flush;
-            }
-            else if (ch == 'l') {
-                if (!paused) { player.pause(); }
-                float currentTime = player.getCurrentTime();
-                currentTime += 5.f;
-                player.setCurrentTime(currentTime);
-                if (!paused) { player.play(); }
-                std::cout << "\rForward 5 seconds\033[K" << std::flush;
-            }
-            else if (ch == 'k') {
-                if (!paused) { player.pause(); }
-                float currentTime = player.getCurrentTime();
-                if (currentTime >= 30.f) { currentTime -= 30.f; } else { currentTime = 0.f; };
-                player.setCurrentTime(currentTime);
-                if (!paused) { player.play(); }
-                std::cout << "\rRewind 30 seconds\033[K" << std::flush;
-            }
-            else if (ch == 'j') {
-                if (!paused) { player.pause(); }
-                float currentTime = player.getCurrentTime();
-                currentTime += 30.f;
-                player.setCurrentTime(currentTime);
-                if (!paused) { player.play(); }
-                std::cout << "\rForward 30 seconds\033[K" << std::flush;
-            }
-            else if (ch == ':') {
-                std::string cmd = term.read_line("\r:\033[K");
-                std::cout << "\033[F" << ":" << cmd << "\033[K" << std::flush;
-            }
-            else {
-                std::cout << "\rKey capture: " << ch
-                          << " (ASCII: " << static_cast<int>(ch) << ")" << std::flush;
-            }
+        // 1. 处理键盘输入，如果返回 false 说明用户按下 ESC 退出
+        if (!inputController.handleInput()) {
+            app.quit();
+            return;
         }
 
-        // --- Part B: 实时刷新桌面歌词（必须放在定时器回调内！）---
-        if (player.isPlaying() && !paused) {
-            float currentTime = player.getCurrentTime(); // 实时获取播放时间
-
+        // 2. 刷新歌词逻辑（使用 inputController 状态）
+        if (inputController.isLyricsVisible() && player.isPlaying() && !inputController.isPaused()) {
+            float currentTime = player.getCurrentTime();
             if (lyricParser.hasLyrics()) {
                 std::string currentLyric = lyricParser.getLyricAt(currentTime);
-                
                 if (currentLyric.empty()) {
                     lyricsWidget.setText("🎵 " + songTitle);
                 } else {
@@ -138,14 +85,39 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // --- Part C: 检测播放是否自然结束 ---
-        if (!player.isPlaying() && !paused) {
+        // 3. 终端进度条渲染
+        struct winsize w;
+
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
+            perror("ioctl: failed to get terminal size");
+        } else {
+            int curSeconds = static_cast<int>(player.getCurrentTime());
+            int durSeconds = static_cast<int>(player.getDuration());
+
+            std::ostringstream timeText;
+            timeText << std::setfill('0') << std::setw(2) << curSeconds / 60 << ":"
+                     << std::setw(2) << curSeconds % 60 << "/"
+                     << std::setw(2) << durSeconds / 60 << ":"
+                     << std::setw(2) << durSeconds % 60;
+
+            float ratio = (durSeconds > 0) ? static_cast<float>(curSeconds) / durSeconds : 0.0f;
+            int barWidth = std::max(0, static_cast<int>(w.ws_col) - static_cast<int>(timeText.str().size()) - 1);
+            int starCount = std::min(static_cast<int>(ratio * barWidth), barWidth);
+            int slashCount = std::max(0, barWidth - starCount);
+
+            std::cout << "\033[A\r"
+                      << std::string(starCount, '*')
+                      << std::string(slashCount, '-')
+                      << " " << timeText.str()
+                      << "\033[B" << std::flush;
+        }
+        // 4. 自然结束检测
+        if (!player.isPlaying() && !inputController.isPaused()) {
             std::cout << "\nEnd of Playing." << std::endl;
             app.quit();
         }
     });
 
     pollTimer.start(30);
-
     return app.exec();
 }

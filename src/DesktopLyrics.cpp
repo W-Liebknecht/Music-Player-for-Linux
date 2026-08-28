@@ -10,7 +10,7 @@
 
 DesktopLyrics::DesktopLyrics(QWidget *parent)
     : QWidget(parent)
-    , m_lyricText("✨ 悬浮歌词组件已就绪 ✨")
+    , m_lyricText("✨ Floating lyrics ready ✨")
     , m_font("Sans-Serif", 28, QFont::Bold)
 {
     // 1. 窗口属性设置：无边框 | 置顶 | 工具窗口

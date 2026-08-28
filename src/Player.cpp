@@ -9,13 +9,13 @@ Player::Player(const std::string& filePath)
     
     // 验证文件格式
     if (!isMP3File(_filePath)) {
-        _errorMessage = "错误: 文件不是MP3格式";
+        _errorMessage = "Error: File is not in MP3 format";
         return;
     }
     
     // 尝试加载音乐文件
     if (!_music.openFromFile(_filePath)) {
-        _errorMessage = "错误: 无法打开音乐文件，请确保已安装libmpg123-dev并链接";
+        _errorMessage = "Error: Unable to open the music file. Please ensure libmpg123-dev is installed and linked";
         return;
     }
     
@@ -25,7 +25,7 @@ Player::Player(const std::string& filePath)
 // 播放音乐
 bool Player::play() {
     if (!_isValid) {
-        std::cerr << "Player错误: 音乐未正确加载" << std::endl;
+        std::cerr << "Player error: Music not loaded correctly" << std::endl;
         return false;
     }
     
@@ -88,7 +88,7 @@ void Player::setLoop(bool loop) {
 // 打印音乐信息
 void Player::printInfo() const {
     if (!_isValid) {
-        std::cerr << "Player错误: 音乐未正确加载" << std::endl;
+        std::cerr << "Player error: Music not loaded correctly" << std::endl;
         return;
     }
     
